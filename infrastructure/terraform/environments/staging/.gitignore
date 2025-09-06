@@ -1,0 +1,26 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate.d/
+
+# SSH Keys - NEVER commit these!
+*.pem
+*.key
+*_key
+*_key.pub
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Variable files with sensitive data
+*.auto.tfvars
+terraform.tfvars

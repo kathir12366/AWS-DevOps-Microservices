@@ -1,0 +1,94 @@
+---
+# Test microservices functionality
+- name: Test Microservices
+  hosts: web_servers
+  become: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.8
+    app_directory: "/opt/application"
+    
+  tasks:
+    - name: Check if services are running
+      command: docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      register: running_services
+      become: yes
+      
+    - name: Display running services
+      debug:
+        msg: "{{ running_services.stdout_lines }}"
+        
+    - name: Test API endpoints with curl
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        return_content: yes
+        status_code: [200, 404, 500]
+      register: endpoint_tests
+      ignore_errors: yes
+      loop:
+        - { name: "API Gateway", url: "http://localhost:8080" }
+        - { name: "API Gateway Health", url: "http://localhost:8080/health" }
+        - { name: "Product Service", url: "http://localhost:8001" }
+        - { name: "Product Service Health", url: "http://localhost:8001/health" }
+        - { name: "Order Service", url: "http://localhost:8002" }
+        - { name: "Order Service Health", url: "http://localhost:8002/health" }
+        - { name: "User Service", url: "http://localhost:8003" }
+        - { name: "User Service Health", url: "http://localhost:8003/health" }
+        
+    - name: Display endpoint test results
+      debug:
+        msg: "{{ item.item.name }}: HTTP {{ item.status | default('FAILED') }}"
+      loop: "{{ endpoint_tests.results }}"
+      
+    - name: Check Docker Compose services
+      command: docker-compose ps
+      args:
+        chdir: "{{ app_directory }}"
+      register: compose_services
+      become: yes
+      
+    - name: Display compose services status
+      debug:
+        msg: "{{ compose_services.stdout_lines }}"
+        
+    - name: Get recent logs from services
+      shell: |
+        echo "=== API Gateway Logs ==="
+        docker logs --tail=10 $(docker ps -q -f name=api-gateway) 2>/dev/null || echo "No API Gateway container"
+        echo -e "\n=== Product Service Logs ==="
+        docker logs --tail=10 $(docker ps -q -f name=product) 2>/dev/null || echo "No Product Service container"
+        echo -e "\n=== Order Service Logs ==="
+        docker logs --tail=10 $(docker ps -q -f name=order) 2>/dev/null || echo "No Order Service container"
+        echo -e "\n=== User Service Logs ==="
+        docker logs --tail=10 $(docker ps -q -f name=user) 2>/dev/null || echo "No User Service container"
+      register: service_logs
+      become: yes
+      
+    - name: Display service logs
+      debug:
+        msg: "{{ service_logs.stdout_lines }}"
+        
+    - name: Test database connectivity (if applicable)
+      shell: |
+        docker exec $(docker ps -q -f name=postgres) pg_isready 2>/dev/null && echo "PostgreSQL: UP" || echo "PostgreSQL: DOWN or not found"
+        docker exec $(docker ps -q -f name=redis) redis-cli ping 2>/dev/null && echo "Redis: UP" || echo "Redis: DOWN or not found"
+        docker exec $(docker ps -q -f name=mongo) mongo --eval "db.adminCommand('ismaster')" 2>/dev/null && echo "MongoDB: UP" || echo "MongoDB: DOWN or not found"
+      register: db_status
+      become: yes
+      ignore_errors: yes
+      
+    - name: Display database status
+      debug:
+        msg: "{{ db_status.stdout_lines }}"
+        
+    - name: Create test summary
+      debug:
+        msg:
+          - "=== MICROSERVICES TEST SUMMARY ==="
+          - "Check the output above for:"
+          - "1. Running containers status"
+          - "2. HTTP endpoint responses"
+          - "3. Docker Compose services status" 
+          - "4. Recent service logs"
+          - "5. Database connectivity"
+          - "=== END SUMMARY ==="

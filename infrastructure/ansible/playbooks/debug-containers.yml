@@ -1,0 +1,113 @@
+---
+# Debug container issues and restart services
+- name: Debug and Fix Container Issues
+  hosts: web_servers
+  become: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.8
+    app_directory: "/opt/application"
+    
+  tasks:
+    - name: Check current container status
+      command: docker ps -a
+      register: container_status
+      
+    - name: Display container status
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+        
+    - name: Check logs for failed product_db container
+      shell: docker logs ecommerce_product_db --tail=50
+      register: product_db_logs
+      ignore_errors: yes
+      
+    - name: Display product_db logs
+      debug:
+        msg: "{{ product_db_logs.stdout_lines }}"
+      when: product_db_logs is defined
+      
+    - name: Check Docker Compose services status
+      command: docker-compose ps
+      args:
+        chdir: "{{ app_directory }}"
+      register: compose_status
+      
+    - name: Display compose status
+      debug:
+        msg: "{{ compose_status.stdout_lines }}"
+        
+    - name: Check system resources
+      shell: |
+        echo "=== MEMORY ==="
+        free -h
+        echo -e "\n=== DISK ==="
+        df -h
+        echo -e "\n=== DOCKER INFO ==="
+        docker system df
+      register: system_resources
+      
+    - name: Display system resources
+      debug:
+        msg: "{{ system_resources.stdout_lines }}"
+        
+    - name: Stop all containers to reset state
+      command: docker-compose down
+      args:
+        chdir: "{{ app_directory }}"
+      ignore_errors: yes
+      
+    - name: Remove any orphaned containers
+      command: docker container prune -f
+      ignore_errors: yes
+      
+    - name: Start database containers first (staged startup)
+      shell: |
+        cd {{ app_directory }}
+        docker-compose up -d ecommerce_product_db ecommerce_user_db ecommerce_order_db ecommerce_redis
+      register: db_startup
+      
+    - name: Wait for databases to initialize
+      pause:
+        seconds: 60
+        prompt: "Waiting for databases to initialize..."
+        
+    - name: Check database container health
+      shell: |
+        echo "=== Product DB Health ==="
+        docker logs ecommerce_product_db --tail=10
+        echo -e "\n=== User DB Health ==="
+        docker logs ecommerce_user_db --tail=10
+        echo -e "\n=== Order DB Health ==="
+        docker logs ecommerce_order_db --tail=10
+        echo -e "\n=== Redis Health ==="
+        docker logs ecommerce_redis --tail=10
+      register: db_health
+      ignore_errors: yes
+      
+    - name: Display database health
+      debug:
+        msg: "{{ db_health.stdout_lines }}"
+        
+    - name: Start remaining services
+      command: docker-compose up -d
+      args:
+        chdir: "{{ app_directory }}"
+      register: full_startup
+      
+    - name: Final container status check
+      command: docker ps
+      register: final_status
+      
+    - name: Display final status
+      debug:
+        msg: "{{ final_status.stdout_lines }}"
+        
+    - name: Show running services summary
+      shell: docker-compose ps
+      args:
+        chdir: "{{ app_directory }}"
+      register: final_compose_status
+      
+    - name: Display final compose status
+      debug:
+        msg: "{{ final_compose_status.stdout_lines }}"

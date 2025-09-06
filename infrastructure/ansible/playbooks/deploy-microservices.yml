@@ -1,0 +1,187 @@
+---
+# Deploy and test microservices using Docker Compose
+- name: Install Docker and Deploy Microservices
+  hosts: web_servers
+  become: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.8
+    app_directory: "/opt/application"
+    docker_compose_version: "2.21.0"
+    
+  tasks:
+    # Docker Installation - Amazon Linux 2 specific
+    - name: Remove any existing Docker CE repository
+      raw: |
+        yum-config-manager --disable docker-ce-stable 2>/dev/null || true
+        rm -f /etc/yum.repos.d/docker-ce.repo
+        yum clean all
+      changed_when: false
+      
+    - name: Install Docker using Amazon Linux Extras
+      raw: amazon-linux-extras install docker -y
+      changed_when: false
+      
+    - name: Install Docker Compose dependencies
+      raw: yum install -y curl
+      changed_when: false
+      
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+        
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+        
+    - name: Reset SSH connection to pick up new group membership
+      meta: reset_connection
+        
+    - name: Install Docker Compose
+      raw: |
+        curl -L "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
+        chmod +x /usr/local/bin/docker-compose && \
+        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+      args:
+        creates: /usr/local/bin/docker-compose
+        
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      
+    - name: Verify Docker Compose installation
+      command: docker-compose --version
+      register: compose_version
+      changed_when: false
+      
+    - name: Display versions
+      debug:
+        msg:
+          - "Docker: {{ docker_version.stdout }}"
+          - "Docker Compose: {{ compose_version.stdout }}"
+          
+    # Build and Deploy Microservices
+    - name: Check if docker-compose.yml exists
+      stat:
+        path: "{{ app_directory }}/docker-compose.yml"
+      register: compose_file
+      
+    - name: Stop any running containers
+      command: docker-compose down
+      args:
+        chdir: "{{ app_directory }}"
+      when: compose_file.stat.exists
+      ignore_errors: yes
+      
+    - name: Pull latest images
+      command: docker-compose pull
+      args:
+        chdir: "{{ app_directory }}"
+      when: compose_file.stat.exists
+      register: pull_result
+      
+    - name: Build microservices images
+      command: docker-compose build --parallel
+      args:
+        chdir: "{{ app_directory }}"
+      when: compose_file.stat.exists
+      register: build_result
+      
+    - name: Start microservices
+      command: docker-compose up -d
+      args:
+        chdir: "{{ app_directory }}"
+      when: compose_file.stat.exists
+      register: up_result
+      
+    - name: Wait for services to be ready
+      pause:
+        seconds: 30
+        prompt: "Waiting for microservices to start..."
+        
+    - name: Check running containers
+      command: docker ps
+      register: running_containers
+      changed_when: false
+      
+    - name: Display running containers
+      debug:
+        msg: "{{ running_containers.stdout_lines }}"
+        
+    # Health Checks
+    - name: Check Docker Compose services status
+      command: docker-compose ps
+      args:
+        chdir: "{{ app_directory }}"
+      register: compose_status
+      changed_when: false
+      
+    - name: Display services status
+      debug:
+        msg: "{{ compose_status.stdout_lines }}"
+        
+    - name: Test API Gateway health
+      uri:
+        url: "http://localhost:8080/health"
+        method: GET
+        status_code: [200, 404]
+      register: api_gateway_health
+      ignore_errors: yes
+      
+    - name: Test Product Service health
+      uri:
+        url: "http://localhost:8001/health"
+        method: GET
+        status_code: [200, 404]
+      register: product_service_health
+      ignore_errors: yes
+      
+    - name: Test Order Service health
+      uri:
+        url: "http://localhost:8002/health"
+        method: GET
+        status_code: [200, 404]
+      register: order_service_health
+      ignore_errors: yes
+      
+    - name: Test User Service health
+      uri:
+        url: "http://localhost:8003/health"
+        method: GET
+        status_code: [200, 404]
+      register: user_service_health
+      ignore_errors: yes
+      
+    - name: Display health check results
+      debug:
+        msg:
+          - "API Gateway: {{ 'UP' if api_gateway_health.status == 200 else 'DOWN or no health endpoint' }}"
+          - "Product Service: {{ 'UP' if product_service_health.status == 200 else 'DOWN or no health endpoint' }}"
+          - "Order Service: {{ 'UP' if order_service_health.status == 200 else 'DOWN or no health endpoint' }}"
+          - "User Service: {{ 'UP' if user_service_health.status == 200 else 'DOWN or no health endpoint' }}"
+          
+    # Logs Collection
+    - name: Get logs from all services
+      shell: docker-compose logs --tail=50
+      args:
+        chdir: "{{ app_directory }}"
+      register: compose_logs
+      changed_when: false
+      
+    - name: Save logs to file
+      copy:
+        content: "{{ compose_logs.stdout }}"
+        dest: "{{ app_directory }}/deployment-logs-{{ ansible_date_time.epoch }}.log"
+        
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "Deployment completed successfully!"
+          - "Application directory: {{ app_directory }}"
+          - "Logs saved to: {{ app_directory }}/deployment-logs-{{ ansible_date_time.epoch }}.log"
+          - "Run 'docker-compose logs -f' to follow logs"
+          - "Run 'docker-compose ps' to check services status"

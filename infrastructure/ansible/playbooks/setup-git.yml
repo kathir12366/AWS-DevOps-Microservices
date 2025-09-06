@@ -1,0 +1,81 @@
+---
+# First play: Install Python 3.8 using raw commands (no Python required)
+- name: Ensure Python 3.8 is installed
+  hosts: web_servers
+  become: yes
+  gather_facts: no
+    
+  tasks:
+    - name: Check if Python 3.8 is already installed
+      raw: test -e /usr/bin/python3.8
+      changed_when: false
+      failed_when: false
+      register: python38_check
+      
+    - name: Install Python 3.8 from Amazon Linux Extras
+      raw: |
+        amazon-linux-extras install python3.8 -y && \
+        yum install -y python38-pip && \
+        alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
+      when: python38_check.rc != 0
+      
+    - name: Verify Python 3.8 installation
+      raw: /usr/bin/python3.8 --version
+      changed_when: false
+
+# Second play: Main tasks using Python 3.8
+- name: Setup Git and Clone Repository
+  hosts: web_servers
+  become: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.8
+    # Update these variables with your repository details
+    git_repo_url: "https://github.com/vpodugu/ecommerce-devops-platform.git"
+    git_repo_dest: "/opt/application"
+    git_branch: "main"
+    
+  tasks:
+    - name: Install git using raw command
+      raw: yum install -y git git-core curl wget
+      changed_when: false
+      
+    - name: Verify git installation
+      command: git --version
+      register: git_version
+      changed_when: false
+        
+    - name: Create application directory
+      file:
+        path: "{{ git_repo_dest }}"
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: '0755'
+        
+    - name: Clone GitHub repository
+      git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ git_repo_dest }}"
+        version: "{{ git_branch }}"
+        force: yes
+      become_user: ec2-user
+      
+    - name: Set proper permissions for cloned repository
+      file:
+        path: "{{ git_repo_dest }}"
+        owner: ec2-user
+        group: ec2-user
+        recurse: yes
+        
+    - name: Show installed git version
+      debug:
+        msg: "Git installed: {{ git_version.stdout }}"
+        
+    - name: List cloned repository contents
+      command: ls -la {{ git_repo_dest }}
+      register: repo_contents
+      changed_when: false
+      
+    - name: Show repository contents
+      debug:
+        msg: "{{ repo_contents.stdout_lines }}"
