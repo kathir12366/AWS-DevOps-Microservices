@@ -1,4 +1,6 @@
 const express = require('express');
+const client = require('prom-client');
+client.collectDefaultMetrics();
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -12,6 +14,11 @@ const healthRoutes = require('./routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 // Security middleware
 app.use(helmet());
