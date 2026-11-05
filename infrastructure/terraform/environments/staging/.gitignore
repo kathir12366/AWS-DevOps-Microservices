@@ -2,7 +2,6 @@
 *.tfstate
 *.tfstate.*
 .terraform/
-.terraform.lock.hcl
 terraform.tfstate.d/
 
 # SSH Keys - NEVER commit these!
@@ -23,4 +22,4 @@ terraform.rc
 
 # Variable files with sensitive data
 *.auto.tfvars
-terraform.tfvars
+terraform.tfvars*.tfplan

@@ -1,4 +1,4 @@
-# VPC Module Outputs
+# VPC Outputs
 
 output "vpc_id" {
   description = "ID of the VPC"
@@ -6,7 +6,7 @@ output "vpc_id" {
 }
 
 output "vpc_cidr_block" {
-  description = "CIDR block of the VPC"
+  description = "VPC CIDR block"
   value       = module.vpc.vpc_cidr_block
 }
 
@@ -15,27 +15,13 @@ output "public_subnet_ids" {
   value       = module.vpc.public_subnet_ids
 }
 
-output "private_subnet_ids" {
-  description = "IDs of private subnets"
-  value       = module.vpc.private_subnet_ids
-}
-
-output "database_subnet_ids" {
-  description = "IDs of database subnets"
-  value       = module.vpc.database_subnet_ids
-}
-
-output "nat_gateway_ids" {
-  description = "IDs of NAT Gateways"
-  value       = module.vpc.nat_gateway_ids
-}
-
 output "internet_gateway_id" {
-  description = "ID of the Internet Gateway"
+  description = "Internet Gateway ID"
   value       = module.vpc.internet_gateway_id
 }
 
-# EC2 Module Outputs
+# EC2 Outputs
+
 output "web_server_public_ip" {
   description = "Public IP of the web server"
   value       = module.web_server.instance_public_ip
@@ -47,22 +33,23 @@ output "web_server_public_dns" {
 }
 
 output "web_server_instance_id" {
-  description = "Instance ID of the web server"
+  description = "EC2 instance ID"
   value       = module.web_server.instance_id
 }
 
 # SSH Key Outputs
+
 output "ssh_private_key_path" {
-  description = "Path to the generated SSH private key file"
+  description = "Path to generated SSH private key"
   value       = local_file.private_key.filename
 }
 
 output "ssh_key_name" {
-  description = "Name of the SSH key pair in AWS"
+  description = "AWS SSH key pair name"
   value       = aws_key_pair.ec2_key.key_name
 }
 
 output "ssh_connection_command" {
-  description = "SSH command to connect to the EC2 instance"
+  description = "SSH connection command"
   value       = "ssh -i ${local_file.private_key.filename} ec2-user@${module.web_server.instance_public_ip}"
 }

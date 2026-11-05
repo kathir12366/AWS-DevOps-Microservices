@@ -8,7 +8,7 @@ variable "instance_name" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t2.large"
+  default     = "t3.Small"
 }
 
 variable "ami_id" {
@@ -90,4 +90,10 @@ variable "common_tags" {
   description = "Common tags for all resources"
   type        = map(string)
   default     = {}
+}
+
+variable "iam_instance_profile" {
+  description = "IAM instance profile attached to EC2"
+  type        = string
+  default     = ""
 }

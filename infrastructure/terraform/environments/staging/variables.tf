@@ -27,7 +27,7 @@ variable "database_subnet_cidrs" {
 variable "availability_zones" {
   description = "Availability zones for the staging environment"
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
+  default     = ["ap-south-1a", "ap-south-1b"]
 }
 
 variable "environment" {
@@ -36,15 +36,10 @@ variable "environment" {
   default     = "staging"
 }
 
-/*variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
-}*/
-
 variable "common_tags" {
   description = "Common tags for all resources"
   type        = map(string)
+
   default = {
     Environment = "staging"
     ManagedBy   = "terraform"
