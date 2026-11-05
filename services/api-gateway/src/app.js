@@ -20,6 +20,26 @@ app.get('/metrics', async (req, res) => {
   res.end(await client.register.metrics());
 });
 
+// HTTP request counter for Prometheus
+const httpRequestsTotal = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+// Track HTTP requests
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    httpRequestsTotal.inc({
+      method: req.method,
+      route: req.path,
+      status_code: String(res.statusCode)
+    });
+  });
+  next();
+});
+
+
 // Security middleware
 app.use(helmet());
 app.use(cors({

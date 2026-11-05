@@ -14,11 +14,11 @@ function App() {
   const checkHealth = async () => {
     try {
       const services = [
-        { name: 'API Gateway', url: '/api/health' },
-        { name: 'User Service', url: '/api/users/health' },
-        { name: 'Product Service', url: '/api/products/health' },
-        { name: 'Order Service', url: '/api/orders/health' }
-      ];
+  { name: 'API Gateway', url: 'http://localhost:8080/health' },
+  { name: 'User Service', url: 'http://localhost:3001/health' },
+  { name: 'Product Service', url: 'http://localhost:3002/health' },
+  { name: 'Order Service', url: 'http://localhost:3003/health' }
+];
 
       const status = {};
       for (const service of services) {
