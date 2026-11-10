@@ -47,59 +47,59 @@ pipeline {
                 sshagent(credentials: ['ec2-ssh-key']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'bash -s' <<'REMOTE'
-                        set -e
+set -e
 
-                        cd /home/ubuntu/microservices-deploy
+cd /home/ubuntu/microservices-deploy
 
-                        echo "Updating source code"
-                        git fetch origin develop
-                        git checkout develop
-                        git pull --ff-only origin develop
+echo "Updating source code"
+git fetch origin develop
+git checkout develop
+git pull --ff-only origin develop
 
-                        echo "Logging in to AWS ECR"
-                        aws ecr get-login-password --region ap-south-1 |
-                          docker login --username AWS --password-stdin 240571106446.dkr.ecr.ap-south-1.amazonaws.com
+echo "Logging in to AWS ECR"
+aws ecr get-login-password --region ap-south-1 |
+docker login --username AWS --password-stdin 240571106446.dkr.ecr.ap-south-1.amazonaws.com
 
-                        echo "Building User Service"
-                        docker build -t user-service:latest ./services/user-service
+echo "Building User Service"
+docker build -t user-service:latest ./services/user-service
 
-                        echo "Building Product Service"
-                        docker build -t product-service:latest ./services/product-service
+echo "Building Product Service"
+docker build -t product-service:latest ./services/product-service
 
-                        echo "Building Order Service"
-                        docker build -t order-service:latest ./services/order-service
+echo "Building Order Service"
+docker build -t order-service:latest ./services/order-service
 
-                        echo "Scanning User Service"
-                        trivy image --severity HIGH,CRITICAL user-service:latest
+echo "Scanning User Service"
+trivy image --severity HIGH,CRITICAL user-service:latest
 
-                        echo "Scanning Product Service"
-                        trivy image --severity HIGH,CRITICAL product-service:latest
+echo "Scanning Product Service"
+trivy image --severity HIGH,CRITICAL product-service:latest
 
-                        echo "Scanning Order Service"
-                        trivy image --severity HIGH,CRITICAL order-service:latest
+echo "Scanning Order Service"
+trivy image --severity HIGH,CRITICAL order-service:latest
 
-                        echo "Tagging images for ECR"
-                        ECR=240571106446.dkr.ecr.ap-south-1.amazonaws.com
+echo "Tagging images for ECR"
+ECR=240571106446.dkr.ecr.ap-south-1.amazonaws.com
 
-                        docker tag user-service:latest $ECR/staging-user-service:latest
-                        docker tag product-service:latest $ECR/staging-product-service:latest
-                        docker tag order-service:latest $ECR/staging-order-service:latest
+docker tag user-service:latest $ECR/staging-user-service:latest
+docker tag product-service:latest $ECR/staging-product-service:latest
+docker tag order-service:latest $ECR/staging-order-service:latest
 
-                        echo "Pushing images to ECR"
-                        docker push $ECR/staging-user-service:latest
-                        docker push $ECR/staging-product-service:latest
-                        docker push $ECR/staging-order-service:latest
+echo "Pushing images to ECR"
+docker push $ECR/staging-user-service:latest
+docker push $ECR/staging-product-service:latest
+docker push $ECR/staging-order-service:latest
 
-                        echo "Deploying updated services"
-                        docker compose --env-file .env -f deployment/docker-compose.ec2.yml pull user-service product-service order-service
+echo "Deploying updated services"
+docker compose --env-file .env -f deployment/docker-compose.ec2.yml pull user-service product-service order-service
 
-                        docker compose --env-file .env -f deployment/docker-compose.ec2.yml up -d
+docker compose --env-file .env -f deployment/docker-compose.ec2.yml up -d
 
-                        echo "Checking application health"
-                        curl --fail --retry 10 --retry-delay 5 http://localhost/health
+echo "Checking application health"
+curl --fail --retry 10 --retry-delay 5 http://localhost/health
 
-                        echo "CI/CD deployment completed successfully
- REMOTE
+echo "CI/CD deployment completed successfully"
+REMOTE
                     '''
                 }
             }
