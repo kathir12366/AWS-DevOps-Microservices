@@ -297,3 +297,4 @@ For support and questions:
 ---
 
 **Built with ❤️ for DevOps learning and demonstration**
+Testing Jenkins automatic trigger
