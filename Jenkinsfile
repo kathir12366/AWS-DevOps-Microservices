@@ -98,8 +98,8 @@ pipeline {
                         echo "Checking application health"
                         curl --fail --retry 10 --retry-delay 5 http://localhost/health
 
-                        echo "CI/CD deployment completed successfully"
-                        REMOTE
+                        echo "CI/CD deployment completed successfully
+ REMOTE
                     '''
                 }
             }
